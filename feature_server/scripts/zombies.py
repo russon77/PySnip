@@ -3,6 +3,7 @@ bot_zombie.py
 
 original script(https://dl.dropboxusercontent.com/u/31711941/aos/basicbot.py) by hompy
 modified by Beige (Laon)
+modified by Tristan
 
 version : 20150721
 
