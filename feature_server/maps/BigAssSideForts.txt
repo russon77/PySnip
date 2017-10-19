@@ -1,0 +1,6 @@
+name = 'BigAssSideForts'
+version = '1.0'
+author = 'Lostmotel'
+extensions = { 
+'boundary_damage' : {'left' : 1, 'right' : 510, 'top' : 128, 'bottom' : 385, 'damage': 5},
+'babel' : True }
