@@ -179,7 +179,7 @@ def apply_script(protocol, connection, config):
             self.reset_daycycle()
 
             # default to 28 bots, leaving room for 4 humans
-            [self.add_bot(self.green_team) for _ in xrange(32)]
+            [self.add_bot(self.green_team) for _ in xrange(28)]
 
         def add_bot(self, team):
             if len(self.connections) + len(self.bots) >= 32:
@@ -675,9 +675,7 @@ def apply_script(protocol, connection, config):
             connection.on_hit(self, hit_amount, hit_player, type, grenade)
             
         def on_fall(self, damage):
-#            if self.local:
             return False
-#            connection.on_fall(self, damage)
 
         def take_flag(self):
             return
