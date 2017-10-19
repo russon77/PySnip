@@ -637,10 +637,14 @@ def apply_script(protocol, connection, config):
             """
             control how much damage players or bots take here
 
-            currently human players cannot hurt each other
+            currently human players cannot hurt each other,
+            bot take less damage
             """
             if not self.local and not hit_player.local:
                 return False
+
+            if hit_player.local:
+                return hit_amount * 0.50
 
             connection.on_hit(self, hit_amount, hit_player, type, grenade)
 
