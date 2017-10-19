@@ -107,7 +107,6 @@ def day_time(connection, value = None):
 
 add(day_speed)
 add(day_time)
-add(add_bot)
 
 class LocalPeer:
     address = Address('255.255.255.255', 0)
