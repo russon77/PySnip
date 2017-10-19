@@ -36,8 +36,9 @@ requires adding the 'local' attribute to server.py's ServerConnection
 
 """
 
+import random
 
-from math import cos, sin, floor
+from math import cos, sin, floor, modf
 from enet import Address
 from pyspades.protocol import BaseConnection
 from pyspades.server import input_data, weapon_input, set_tool, grenade_packet, block_action, set_color
@@ -47,9 +48,7 @@ from pyspades.collision import vector_collision, collision_3d
 from pyspades.constants import *
 from commands import admin, add, name, get_team
 from pyspades.world import *
-import random
 from twisted.internet.task import LoopingCall
-from math import modf
 from pyspades.color import *
 
 S_NO_RIGHTS = 'No administrator rights!'
@@ -74,31 +73,6 @@ except ImportError:
         protocol.send_contained(block_action, save = True)
         protocol.update_entities()
         return True
-
-def unr(n):
-    if n - floor(n) > 0:
-        return n + 1
-    if n - floor(n) < 0:
-        return n - 1
-    if n - floor(n) == 0:
-        return False          
-
-@admin
-@name('addbot')
-def add_bot(connection, amount = None, team = None):
-    protocol = connection.protocol
-    if team:
-        bot_team = get_team(connection, team)
-    blue, green = protocol.blue_team, protocol.green_team
-    amount = int(amount or 1)
-    for i in xrange(amount):
-        if not team:
-            bot_team = blue if blue.count() < green.count() else green
-        bot = protocol.add_bot(bot_team)
-        if not bot:
-            return "Added %s bot(s)" % i
-    return "Added %s bot(s)" % amount
-
 
 @admin
 @name('dayspeed')
@@ -198,20 +172,20 @@ def apply_script(protocol, connection, config):
             else:
                 for bot in self.bots:
                     bot.flush_input()
-                    
+
             protocol.on_world_update(self)
-        
+
         def on_map_change(self, map):
             self.reset_daycycle()
             self.bots = []
             protocol.on_map_change(self, map)
-        
+
         def on_map_leave(self):
             for bot in self.bots[:]:
                 bot.disconnect()
             self.bots = None
             protocol.on_map_leave(self)
-            
+
         def reset_daycycle(self):
             if not self.daycycle_loop:
                 return
@@ -226,7 +200,7 @@ def apply_script(protocol, connection, config):
             self.next_color()
             if not self.daycycle_loop.running:
                 self.daycycle_loop.start(self.day_update_frequency)
-        
+
         def update_day_color(self):
             if self.current_time >= 24.00:
                 self.current_time = wrap(0.00, 24.00, self.current_time)
@@ -249,7 +223,7 @@ def apply_script(protocol, connection, config):
                 self.current_color = new_color
                 self.set_fog_color(self.current_color)
             self.current_time += self.time_step * self.time_multiplier
-        
+
         def next_color(self):
             self.start_time, self.start_color, _ = (
                 self.day_colors[self.target_color_index])
@@ -260,7 +234,7 @@ def apply_script(protocol, connection, config):
             if not self.hsv_transition:
                 self.start_color = hsb_to_rgb(*self.start_color)
                 self.target_color = hsb_to_rgb(*self.target_color)
-                
+
     class BotConnection(connection):
         aim = None
         last_aim = None
@@ -611,7 +585,6 @@ def apply_script(protocol, connection, config):
         
         def on_spawn(self, pos):
             if not self.local:
-                # self.chaser = 0
                 return connection.on_spawn(self, pos)
             self.world_object.set_orientation(1.0, 0.0, 0.0)
             self.set_tool(SPADE_TOOL)
@@ -631,21 +604,19 @@ def apply_script(protocol, connection, config):
                 return connection.on_connect(self)
             max_players = min(32, self.protocol.max_players)
             protocol = self.protocol
-#            if len(protocol.connections) + len(protocol.bots) > max_players:
-#                protocol.bots[-1].disconnect()
+            if len(protocol.connections) + len(protocol.bots) > max_players:
+                return False
             connection.on_connect(self)
-        
+
         def on_disconnect(self):
             if self.team == self.protocol.blue_team:  
-                # self.chaser = []            
                 for bot in self.protocol.bots:
                     if bot.aim_at is self:
                         bot.aim_at = None
             connection.on_disconnect(self)
-            
+
         def on_team_changed(self, old_team):
             if old_team == self.protocol.blue_team:  
-                # self.chaser = 0         
                 for bot in self.protocol.bots:
                     if bot.aim_at is self:
                         bot.aim_at = None   
@@ -653,11 +624,7 @@ def apply_script(protocol, connection, config):
         
         def on_kill(self, killer, type, grenade): 
             pos = self.world_object.position
-            # if self.grenade_call is not None:
-                # self.grenade_call.cancel()
-                # self.grenade_call = None 
             if not self.local and type == MELEE_KILL:
-                # self.chaser = 0
                 if killer.local:
                     for bot in self.protocol.bots:
                         if (bot.world_object) and (not bot.world_object.dead) and (not bot == killer):
@@ -669,44 +636,56 @@ def apply_script(protocol, connection, config):
             connection.on_kill(self, killer, type, grenade)            
             
         def on_hit(self, hit_amount, hit_player, type, grenade):
+            """
+            control how much damage players or bots take here
+
+            currently human players cannot hurt each other
+            """
             if not self.local and not hit_player.local:
                 return False
-#            if hit_player.local:
-#                return False
+
             connection.on_hit(self, hit_amount, hit_player, type, grenade)
-            
+
         def on_fall(self, damage):
+            """
+            control fall damage here
+
+            currently neither humans nor bots take fall damage
+            """
             return False
 
         def take_flag(self):
             return
-            
-        def on_block_destroy(self, x, y, z, mode):  
+
+        def on_block_destroy(self, x, y, z, mode):
+            """
+            only spades can destroy blocks
+            """
             if self.tool != SPADE_TOOL or mode == GRENADE_DESTROY:
                 return False
-        
+
         def _send_connection_data(self):
             if self.local:
                 if self.player_id is None:
                     self.player_id = self.protocol.player_ids.pop()
                 return
             connection._send_connection_data(self)
-        
+
         def send_map(self, data = None):
             if self.local:
                 self.on_join()
                 return
             connection.send_map(self, data)
-        
+
         def timer_received(self, value):
             if self.local:
                 return
             connection.timer_received(self, value)
-        
+
         def send_loader(self, loader, acyk = False, byte = 0):
             if self.local:
                 return
             return connection.send_loader(self, loader, ack, byte)
-    
+
     return BotProtocol, BotConnection
-0
+
