@@ -111,10 +111,10 @@ add(day_time)
 class LocalPeer:
     address = Address('255.255.255.255', 0)
     roundTripTime = 0.0
-    
+
     def send(self, *arg, **kw):
         pass
-    
+
     def reset(self):
         pass
 
@@ -145,8 +145,6 @@ def apply_script(protocol, connection, config):
             (22.50, (0.1,    0.69, 0.1 ), True),
             (23.00, (0.05,   0.05, 0.05), False)]
 
-        messages_sent = {'night': False, 'day': False}
-
         def __init__(self, *arg, **kw):
             protocol.__init__(self, *arg, **kw)
             self.daycycle_loop = LoopingCall(self.update_day_color)
@@ -166,6 +164,7 @@ def apply_script(protocol, connection, config):
         def on_world_update(self):
             if self.bots and self.ai_enabled and \
                (self.current_time > 20.00 or self.current_time < 8.00):
+
                 for bot in self.bots:
                     bot.update()
             else:
@@ -189,7 +188,7 @@ def apply_script(protocol, connection, config):
             if not self.daycycle_loop:
                 return
             self.current_color = None
-            self.current_time = 7.00
+            self.current_time = 5.00
             self.day_duration = 24 * 60 * 60.00
             self.day_update_frequency = 0.1
             self.time_multiplier = 250.0 # this controls how fast the day/night cycle changes
@@ -655,6 +654,14 @@ def apply_script(protocol, connection, config):
 
         def take_flag(self):
             return
+
+        def on_block_build(self, x, y, z):
+            """
+            during the day, refill the user after a block placement
+            to support quick, infinite building
+            """
+            if self.protocol.current_time < 20.00 and self.protocol.current_time > 8.00:
+                self.refill()
 
         def on_block_destroy(self, x, y, z, mode):
             """
