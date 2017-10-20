@@ -687,6 +687,14 @@ def apply_script(protocol, connection, config):
         def take_flag(self):
             return
 
+        def on_line_build(self, points):
+            """
+            during the day, refill the user after a block placement
+            to support quick, infinite building
+            """
+            if self.protocol.current_time < 20.00 and self.protocol.current_time > 8.00:
+                self.refill()
+
         def on_block_build(self, x, y, z):
             """
             during the day, refill the user after a block placement
