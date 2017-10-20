@@ -37,6 +37,7 @@ requires adding the 'local' attribute to server.py's ServerConnection
 """
 
 import random
+import time
 
 from math import cos, sin, floor, modf
 from enet import Address
@@ -150,8 +151,24 @@ def apply_script(protocol, connection, config):
             self.daycycle_loop = LoopingCall(self.update_day_color)
             self.reset_daycycle()
 
+            LoopingCall(self.regenerate_health).start(0.20)
+
             # default to 28 bots, leaving room for 4 humans
             [self.add_bot(self.green_team) for _ in xrange(28)]
+
+        def regenerate_health(self):
+            """
+            increase the value of each human player's hp by one,
+            if they are human, not already full health, and it has been
+            at least 5 seconds since damage last taken
+
+            to be called every fifth second
+            """
+
+            for player in self.connections.values():
+                if player.hp and not player.local and player.hp < 100 and \
+                   (time.time() - player.damage_taken_at) > 5:
+                    player.set_hp(player.hp + 1, type = FALL_KILL)
 
         def add_bot(self, team):
             if len(self.connections) + len(self.bots) >= 32:
@@ -645,6 +662,9 @@ def apply_script(protocol, connection, config):
 
             if hit_player.local:
                 return hit_amount * 0.50
+            else:
+                hit_player.damage_taken_at = time.time()
+
 
             connection.on_hit(self, hit_amount, hit_player, type, grenade)
 
