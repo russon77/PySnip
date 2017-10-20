@@ -145,6 +145,7 @@ def apply_script(protocol, connection, config):
             (20.50, (0.1056, 0.69, 1.00), False),
             (22.50, (0.1,    0.69, 0.1 ), True),
             (23.00, (0.05,   0.05, 0.05), False)]
+        messages = {'night': False, 'day': False}
 
         def __init__(self, *arg, **kw):
             protocol.__init__(self, *arg, **kw)
@@ -153,8 +154,31 @@ def apply_script(protocol, connection, config):
 
             LoopingCall(self.regenerate_health).start(0.20)
 
+            LoopingCall(self.messaging_service).start(1)
+
             # default to 28 bots, leaving room for 4 humans
             [self.add_bot(self.green_team) for _ in xrange(28)]
+
+        def messaging_service(self):
+            """
+            display messages at given times
+            """
+            if self.current_time > 20.00 or self.current_time < 8.00:
+                if not self.messages['night']:
+                    self.send_chat('The zombies rise!')
+
+                    self.messages = {
+                        'night': True,
+                        'day': False
+                    }
+            else:
+                if not self.messages['day']:
+                    self.send_chat('The zombies sleep, for now...')
+
+                    self.messages = {
+                        'night': False,
+                        'day': True
+                    }
 
         def regenerate_health(self):
             """
@@ -205,7 +229,7 @@ def apply_script(protocol, connection, config):
             if not self.daycycle_loop:
                 return
             self.current_color = None
-            self.current_time = 5.00
+            self.current_time = 12.00
             self.day_duration = 24 * 60 * 60.00
             self.day_update_frequency = 0.1
             self.time_multiplier = 250.0 # this controls how fast the day/night cycle changes
