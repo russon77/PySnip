@@ -121,9 +121,7 @@ class LocalPeer:
 
 def apply_script(protocol, connection, config):
     class BotProtocol(protocol):
-        bots = None
-        ai_enabled = True
-        strong = False
+        bots = []
 
         current_color = None
         current_time = None
@@ -203,7 +201,7 @@ def apply_script(protocol, connection, config):
             return bot
 
         def on_world_update(self):
-            if self.bots and self.ai_enabled and \
+            if self.bots and \
                (self.current_time > 20.00 or self.current_time < 8.00):
 
                 for bot in self.bots:
@@ -215,15 +213,13 @@ def apply_script(protocol, connection, config):
             protocol.on_world_update(self)
 
         def on_map_change(self, map):
-            self.reset_daycycle()
-            self.bots = []
-            protocol.on_map_change(self, map)
+            return protocol.on_map_change(self, map)
 
         def on_map_leave(self):
             for bot in self.bots[:]:
                 bot.disconnect()
-            self.bots = None
-            protocol.on_map_leave(self)
+            self.bots = []
+            return protocol.on_map_leave(self)
 
         def reset_daycycle(self):
             if not self.daycycle_loop:
@@ -483,10 +479,8 @@ def apply_script(protocol, connection, config):
                                     input.add('left')
                                     input.discard('up')
                                 break
-                    if self.protocol.strong:
-                        jump_delay = 20
-                    else:
-                        jump_delay = 30
+                    jump_delay = 30
+
                     if self.protocol.loop_count - self.jump_count < jump_delay:
                         input.discard('jump')
                     else:
@@ -503,11 +497,6 @@ def apply_script(protocol, connection, config):
                     ('sprint' in input) == world_object.sprint)
                 if input_changed:
                     if not self.freeze_animation:
-                        if ('sprint' in input) and (not 'jump' in input):
-                            if self.protocol.strong:
-                                if not self.protocol.map.get_solid(self.aim.x + pos.x, self.aim.y + pos.y, pos.z):
-                                    self.set_location((self.aim.x + pos.x, self.aim.y + pos.y, pos.z))
-                            
                         world_object.set_walk('up' in input, 'down' in input,
                             'left' in input, 'right' in input)
                         world_object.set_animation('jump' in input, 'crouch' in input,
@@ -585,10 +574,7 @@ def apply_script(protocol, connection, config):
 
                            
         def dig(self, i):
-            if not self.protocol.strong:
-                bindo = 10
-            else:
-                bindo = 40
+            bindo = 40
             obj = self.world_object
             ori = obj.orientation
             pos = obj.position
@@ -637,7 +623,25 @@ def apply_script(protocol, connection, config):
             self.ticks_stumped3 = 0
             self.last_pos.set(*pos)
             connection.on_spawn(self, pos)
-            
+
+        def on_spawn_location(self, pos):
+            """
+            humans spawn in the center of the map, zombies spawn randomly
+
+            Magic numbers (0.5, 2.4) taken from server.py spawn function
+            """
+            if not self.local:
+                x, y = random.randint(240, 272) + 0.5, random.randint(240, 272) + 0.5
+                z = self.protocol.map.get_z(x, y) - 2.4
+                return (x, y, z)
+
+            # always spawn at least 64 blocks away from humans
+            x = 256.5 + (random.randint(64, 128) * random.choice((-1, 1)))
+            y = 256.5 + (random.randint(64, 128) * random.choice((-1, 1)))
+            z = self.protocol.map.get_z(x, y) - 2.4
+
+            return (x, y, z)
+
         def on_connect(self):
             if self.local:
                 return connection.on_connect(self)
@@ -658,11 +662,12 @@ def apply_script(protocol, connection, config):
             if old_team == self.protocol.blue_team:  
                 for bot in self.protocol.bots:
                     if bot.aim_at is self:
-                        bot.aim_at = None   
-            connection.on_team_changed(self, old_team)                         
-        
-        def on_kill(self, killer, type, grenade): 
+                        bot.aim_at = None
+            connection.on_team_changed(self, old_team)
+
+        def on_kill(self, killer, type, grenade):
             pos = self.world_object.position
+
             if not self.local and type == MELEE_KILL:
                 if killer.local:
                     for bot in self.protocol.bots:
@@ -672,7 +677,8 @@ def apply_script(protocol, connection, config):
                 for bot in self.protocol.bots:
                     if bot.aim_at is self:
                         bot.aim_at = None
-            connection.on_kill(self, killer, type, grenade)            
+
+            return connection.on_kill(self, killer, type, grenade)            
             
         def on_hit(self, hit_amount, hit_player, type, grenade):
             """
@@ -698,7 +704,7 @@ def apply_script(protocol, connection, config):
                 hit_player.damage_taken_at = time.time()
 
 
-            connection.on_hit(self, hit_amount, hit_player, type, grenade)
+            return connection.on_hit(self, hit_amount, hit_player, type, grenade)
 
         def on_fall(self, damage):
             """
@@ -709,7 +715,7 @@ def apply_script(protocol, connection, config):
             return False
 
         def take_flag(self):
-            return
+            return False
 
         def on_line_build(self, points):
             """
