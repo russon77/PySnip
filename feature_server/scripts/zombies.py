@@ -655,13 +655,21 @@ def apply_script(protocol, connection, config):
             control how much damage players or bots take here
 
             currently human players cannot hurt each other,
-            bot take less damage
+            bot take less damage per human player in the game
             """
             if not self.local and not hit_player.local:
                 return False
 
             if hit_player.local:
-                return hit_amount * 0.50
+                num_humans = len(self.protocol.connections) - len(self.protocol.bots)
+                if num_humans == 1:
+                    return hit_amount
+                elif num_humans == 2:
+                    return hit_amount * 0.70
+                elif num_humans == 3:
+                    return hit_amount * 0.40
+                elif num_humans == 4:
+                    return hit_amount * 0.10
             else:
                 hit_player.damage_taken_at = time.time()
 
