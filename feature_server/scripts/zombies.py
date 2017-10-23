@@ -5,30 +5,29 @@ original script(https://dl.dropboxusercontent.com/u/31711941/aos/basicbot.py) by
 modified by Beige (Laon)
 modified by Tristan
 
-version : 20150721
+version : 20171023
 
 requires adding the 'local' attribute to server.py's ServerConnection
- 
+
 *** 201,206 ****
 --- 201,207 ----
       last_block = None
       map_data = None
       last_position_update = None
 +     local = False
-       
+
       def __init__(self, *arg, **kw):
           BaseConnection.__init__(self, *arg, **kw)
 *** 211,216 ****
 --- 212,219 ----
           self.rapids = SlidingWindow(RAPID_WINDOW_ENTRIES)
-       
+
       def on_connect(self):
 +         if self.local:
 +             return
           if self.peer.eventData != self.protocol.version:
               self.disconnect(ERROR_WRONG_VERSION)
               return
- 
 <admin commands>
 
 /addbot [amount] [green|blue]
@@ -59,6 +58,37 @@ S_SPEED_SET = 'Day cycle speed changed to {multiplier}'
 S_STOPPED = 'Day cycle stopped'
 
 ALWAYS_ENABLED = True
+
+ZOMBIE_NAMES = [
+    'Afriel',
+    'Ariel',
+    'Cassiel',
+    'Charmeine',
+    'Dina',
+    'Gavreel',
+    'Michael',
+    'Gabriel',
+    'Raphael',
+    'Micah',
+    'Uriel',
+    'Forfax',
+    'Hadraniel',
+    'Jake',
+    'Jophiel',
+    'Lailah',
+    'Manakel',
+    'Nathaniel',
+    'Ramiel',
+    'Sariel',
+    'Sachael',
+    'Tabbris',
+    'Xapham',
+    'Raziel',
+    'Paschar',
+    'Zuriel',
+    'Zuphlas',
+    'Zadkiel'
+]
 
 try:
     from preservecolor import destroy_block
@@ -229,6 +259,7 @@ def apply_script(protocol, connection, config):
         def reset_daycycle(self):
             if not self.daycycle_loop:
                 return
+
             self.current_color = None
             self.current_time = 12.00
             self.day_duration = 24 * 60 * 60.00
@@ -238,6 +269,7 @@ def apply_script(protocol, connection, config):
                 self.day_update_frequency)
             self.target_color_index = 0
             self.next_color()
+
             if not self.daycycle_loop.running:
                 self.daycycle_loop.start(self.day_update_frequency)
 
@@ -252,11 +284,11 @@ def apply_script(protocol, connection, config):
             t = ((self.current_time - self.start_time) /
                 (self.target_time - self.start_time))
             if self.hsv_transition:
-                new_color = interpolate_hsb(self.start_color, 
+                new_color = interpolate_hsb(self.start_color,
                     self.target_color, t)
                 new_color = hsb_to_rgb(*new_color)
             else:
-                new_color = interpolate_rgb(self.start_color, 
+                new_color = interpolate_rgb(self.start_color,
                     self.target_color, t)
             if (self.current_color is None or
                 rgb_distance(self.current_color, new_color) > 3):
@@ -292,7 +324,7 @@ def apply_script(protocol, connection, config):
         sec2 = 15
         discar = 0
         knock = 4
-        
+
         _turn_speed = None
         _turn_vector = None
         def _get_turn_speed(self):
@@ -301,41 +333,40 @@ def apply_script(protocol, connection, config):
             self._turn_speed = value
             self._turn_vector = Vertex3(cos(value), sin(value), 0.0)
         turn_speed = property(_get_turn_speed, _set_turn_speed)
-        
+
         def __init__(self, protocol, peer):
             if peer is not None:
                 return connection.__init__(self, protocol, peer)
             self.local = True
             connection.__init__(self, protocol, LocalPeer())
             self.on_connect()
-            #~ self.saved_loaders = None
             self._send_connection_data()
             self.send_map()
-            
+
             self.aim = Vertex3()
             self.target_orientation = Vertex3()
             self.last_pos = Vertex3()
             self.turn_speed = 0.15 # rads per tick
             self.input = set()
-            
+
         def join_game(self, team):
-            self.name = 'ZOMBIE%s' % str(self.player_id)
+            self.name = ZOMBIE_NAMES[self.player_id]
             self.team = team
             self.set_weapon(RIFLE_WEAPON, True)
             self.protocol.players[(self.name, self.player_id)] = self
             self.on_login(self.name)
             self.spawn()
-        
+
         def update(self):
             obj = self.world_object
             ori = obj.orientation
             pos = obj.position
-            
+
             if self.world_object.dead:
                 return
 
             for i in self.team.other.get_players():
-                if (i.world_object) and (not i.world_object.dead) and (not i.god): 
+                if (i.world_object) and (not i.world_object.dead) and (not i.god):
                     some = Vertex3()
                     some.set_vector(i.world_object.position)
                     some -= pos
@@ -343,7 +374,7 @@ def apply_script(protocol, connection, config):
                     if distance_to_new_aim < self.distance_to_aim:
                         self.aim_at = i
                         self.last_aim = None
-                        
+
             if self.aim_at and self.aim_at.world_object:
                 real_aim_at_pos = self.aim_at.world_object.position
                 if obj.can_see(
@@ -360,23 +391,21 @@ def apply_script(protocol, connection, config):
                 self.aim -= pos
                 self.distance_to_aim = self.aim.normalize()
                 self.input.add('up')
-#                self.input.add('sprint')
                 self.last_pos -= pos
                 moved = Vertex3()
                 moved.set_vector(self.last_pos)
                 distance_moved = self.last_pos.length_sqr()
                 self.last_pos.set_vector(pos)
-                
+
                 if self.distance_to_aim <= 2.0:
                     self.target_orientation.set_vector(self.aim)
-#                    self.input.discard('sprint')
-                    self.input.add('primary_fire')  
+                    self.input.add('primary_fire')
                     self.left_spade()
                 else:
                     some = Vertex3()
                     some.x, some.y, some.z = self.aim.x, self.aim.y, 0
                     self.target_orientation.set_vector(some)
-                    
+
                 if (self.world_object.velocity.z != 0 and abs(floor(aim_at_pos.x) - floor(pos.x)) <= 10 and abs(floor(aim_at_pos.y) - floor(pos.y)) <= 10) or (
 				abs(floor(aim_at_pos.x) - floor(pos.x)) <= 1 and abs(floor(aim_at_pos.y) - floor(pos.y)) <= 1):
                     try:
@@ -385,7 +414,7 @@ def apply_script(protocol, connection, config):
                                 self.input.add('jump')
                                 self.ticks_stumped3 += 1
                                 self.sec = 15
-                                self.ticks_stumped = 0  
+                                self.ticks_stumped = 0
                                 self.ticks_stumped2 = 0
                                 if self.ticks_stumped3 >= self.sec2:
                                     self.sec2 += 15
@@ -398,7 +427,7 @@ def apply_script(protocol, connection, config):
                                     self.sec2 += 15
                                     self.dig(2)
                         else:
-                            self.last_aim = None  
+                            self.last_aim = None
                     except AttributeError:
                         self.last_aim = None
                 else:
@@ -407,10 +436,9 @@ def apply_script(protocol, connection, config):
                     if (moved.x == 0) or (moved.y == 0):
                         self.input.discard('sprint')
                         self.ticks_stumped += 1 
-                        #if (self.nature == 0):
                         self.input.add('jump')
                         if (self.ticks_stumped >= self.sec):
-                            self.input.add('primary_fire')                      
+                            self.input.add('primary_fire')
                             if self.sec % 30 == 0:
                                 i = 1
                             else:
@@ -423,21 +451,14 @@ def apply_script(protocol, connection, config):
                             self.sec += 15
                             self.input.add('primary_fire')
                             self.dig(i)
-                    #elif distance_moved < 0.05:
-                      #  self.ticks_stumped2 += 1
-                        #if self.ticks_stumped2 >= 600:
-                          #  self.kill()
-                    # elif (moved.x + moved.y) / 2 < 0.0066
                     else:
                         self.sec = 15
-                        #else:
-                            #self.sec = 300
-                        self.ticks_stumped = 0  
+                        self.ticks_stumped = 0
                         self.ticks_stumped2 = 0
             else:
                 self.last_aim = None
-                self.distance_to_aim = float('inf')               
-                
+                self.distance_to_aim = float('inf')
+
             # orientate towards target
             diff = ori - self.target_orientation
             diff.z = 0.0
@@ -461,10 +482,7 @@ def apply_script(protocol, connection, config):
             input = self.input
             world_object = self.world_object
             pos = world_object.position
-            #self.overlap = False
-           # if self.knock < 4:
-             #   self.knock += 1
-              #  input.discard('sprint')
+
             if not self.world_object.dead:
                 if self.local:
                     for i in self.team.get_players():
@@ -499,7 +517,6 @@ def apply_script(protocol, connection, config):
                     ('jump' in input) == world_object.jump and
                     ('crouch' in input) == world_object.crouch and
                     ('sneak' in input) == world_object.sneak)
-#                    ('sprint' in input) == world_object.sprint)
                 if input_changed:
                     if not self.freeze_animation:
                         world_object.set_walk('up' in input, 'down' in input,
@@ -536,10 +553,9 @@ def apply_script(protocol, connection, config):
                         weapon_input.primary = primary
                         weapon_input.secondary = secondary
                         self.protocol.send_contained(weapon_input)
-                # hit = 'value' in input
-                # if hit_changed:
+
                 input.clear()
-        
+
         def set_tool(self, tool):
             if self.on_tool_set_attempt(tool) == False:
                 return
@@ -553,7 +569,7 @@ def apply_script(protocol, connection, config):
             set_tool.player_id = self.player_id
             set_tool.value = self.tool
             self.protocol.send_contained(set_tool)
-        
+
         def throw_grenade(self, time_left):
             return False
 
@@ -561,8 +577,8 @@ def apply_script(protocol, connection, config):
             obj = self.world_object
             pos = obj.position
             ori = obj.orientation
-            
-            if self.world_object.dead: 
+
+            if self.world_object.dead:
                 return
             if self.protocol.loop_count - self.spade_count < 24:
                 return
@@ -577,7 +593,7 @@ def apply_script(protocol, connection, config):
                        self.on_hit(hit_amount, player, type, None)
                        player.hit(hit_amount, self, type)
 
-                           
+
         def dig(self, i):
             bindo = 40
             obj = self.world_object
@@ -606,17 +622,16 @@ def apply_script(protocol, connection, config):
 
                         self.on_block_removed(x, y, z)
 
-        def create_explosion_effect(self):
-            self.protocol.world.create_object(Grenade, 0.0, self.world_object.position, None, Vertex3(), None)
-            grenade_packet.value = 0.0
-            grenade_packet.player_id = 32
-            grenade_packet.position = self.world_object.position.get()
-            grenade_packet.velocity = (0.0, 0.0, 0.0)
-            self.protocol.send_contained(grenade_packet)
-        
         def on_spawn(self, pos):
+            """
+            humans spawn normally
+
+            zombies are reset before spawn
+            """
+
             if not self.local:
                 return connection.on_spawn(self, pos)
+
             self.world_object.set_orientation(1.0, 0.0, 0.0)
             self.set_tool(SPADE_TOOL)
             self.aim_at = None
@@ -628,7 +643,8 @@ def apply_script(protocol, connection, config):
             self.ticks_stumped2 = 0
             self.ticks_stumped3 = 0
             self.last_pos.set(*pos)
-            connection.on_spawn(self, pos)
+
+            return connection.on_spawn(self, pos)
 
         def on_spawn_location(self, pos):
             """
@@ -651,41 +667,41 @@ def apply_script(protocol, connection, config):
         def on_connect(self):
             if self.local:
                 return connection.on_connect(self)
+
             max_players = min(32, self.protocol.max_players)
             protocol = self.protocol
+
             if len(protocol.connections) + len(protocol.bots) > max_players:
                 return False
-            connection.on_connect(self)
+
+            return connection.on_connect(self)
 
         def on_disconnect(self):
-            if self.team == self.protocol.blue_team:  
+            if self.team == self.protocol.blue_team:
                 for bot in self.protocol.bots:
                     if bot.aim_at is self:
                         bot.aim_at = None
-            connection.on_disconnect(self)
+
+            return connection.on_disconnect(self)
 
         def on_team_changed(self, old_team):
-            if old_team == self.protocol.blue_team:  
+            if old_team == self.protocol.blue_team:
                 for bot in self.protocol.bots:
                     if bot.aim_at is self:
                         bot.aim_at = None
-            connection.on_team_changed(self, old_team)
+
+            return connection.on_team_changed(self, old_team)
 
         def on_kill(self, killer, type, grenade):
             pos = self.world_object.position
 
             if not self.local and type == MELEE_KILL:
-                if killer.local:
-                    for bot in self.protocol.bots:
-                        if (bot.world_object) and (not bot.world_object.dead) and (not bot == killer):
-                            bot.set_location((pos.x, pos.y, pos.z))
-                            break
                 for bot in self.protocol.bots:
                     if bot.aim_at is self:
                         bot.aim_at = None
 
-            return connection.on_kill(self, killer, type, grenade)            
-            
+            return connection.on_kill(self, killer, type, grenade)
+
         def on_hit(self, hit_amount, hit_player, type, grenade):
             """
             control how much damage players or bots take here
@@ -698,18 +714,8 @@ def apply_script(protocol, connection, config):
 
             if hit_player.local:
                 return hit_amount * 0.50
-#                num_humans = len(self.protocol.connections) - len(self.protocol.bots)
-#                if num_humans == 1:
-#                    return hit_amount
-#                elif num_humans == 2:
-#                    return hit_amount * 0.70
-#                elif num_humans == 3:
-#                    return hit_amount * 0.40
-#                elif num_humans == 4:
-#                    return hit_amount * 0.10
             else:
                 hit_player.damage_taken_at = time.time()
-
 
             return connection.on_hit(self, hit_amount, hit_player, type, grenade)
 
@@ -717,11 +723,8 @@ def apply_script(protocol, connection, config):
             """
             control fall damage here
 
-            currently neither humans nor bots take fall damage
+            return False for neither humans nor bots take fall damage
             """
-            return False
-
-        def take_flag(self):
             return False
 
         def on_line_build(self, points):
@@ -739,13 +742,6 @@ def apply_script(protocol, connection, config):
             """
             if self.protocol.current_time < 20.00 and self.protocol.current_time > 8.00:
                 self.refill()
-
-        def on_block_destroy(self, x, y, z, mode):
-            """
-            only spades can destroy blocks
-            """
-            if self.tool != SPADE_TOOL or mode == GRENADE_DESTROY:
-                return False
 
         def _send_connection_data(self):
             if self.local:
