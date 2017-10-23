@@ -1,0 +1,10 @@
+name = 'BattleRoyalarena'
+version = '1.0'
+author = 'IISOD}M.Shadow, tech assist MoJo'
+description = ('painball playground')
+extensions = {
+     'arena': True,
+     'arena_blue_spawn' : (19, 326, 60),
+     'arena_green_spawn' : (111, 198, 60),
+     'arena_gates' : ((111, 202, 60), (19, 318, 60))
+}

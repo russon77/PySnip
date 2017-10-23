@@ -1,0 +1,28 @@
+name = 'pincushion2.0'
+version = '2.0'
+author = 'israelleelll'
+# script
+from pyspades.constants import *
+import random
+
+def get_entity_location(team, entity_id):
+    if entity_id == 0:
+        x,y,z=256,256,0
+    if entity_id == 1:
+        x,y,z=256,256,0
+    if entity_id == 2:
+        x,y,z=90,256,team.protocol.map.get_z(90,256)-1
+    if entity_id == 3:
+        x,y,z=420,256,team.protocol.map.get_z(420,256)-1
+
+def get_spawn_location(connection):
+    if connection.team is connection.protocol.blue_team:
+        x = random.randrange(64,96)
+        y = random.randrange(206,304)
+        z = connection.team.protocol.map.get_z(x, y)
+        return (x, y, z-1)
+    if connection.team is connection.protocol.green_team:
+        x = random.randrange(415,447)
+        y = random.randrange(206,304)
+        z = connection.team.protocol.map.get_z(x, y)
+        return (x, y, z-1)
