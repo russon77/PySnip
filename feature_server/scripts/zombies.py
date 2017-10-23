@@ -355,7 +355,7 @@ def apply_script(protocol, connection, config):
                 self.aim -= pos
                 self.distance_to_aim = self.aim.normalize()
                 self.input.add('up')
-                self.input.add('sprint')
+#                self.input.add('sprint')
                 self.last_pos -= pos
                 moved = Vertex3()
                 moved.set_vector(self.last_pos)
@@ -364,7 +364,7 @@ def apply_script(protocol, connection, config):
                 
                 if self.distance_to_aim <= 2.0:
                     self.target_orientation.set_vector(self.aim)
-                    self.input.discard('sprint')
+#                    self.input.discard('sprint')
                     self.input.add('primary_fire')  
                     self.left_spade()
                 else:
@@ -493,14 +493,14 @@ def apply_script(protocol, connection, config):
                     ('right' in input) == world_object.right and
                     ('jump' in input) == world_object.jump and
                     ('crouch' in input) == world_object.crouch and
-                    ('sneak' in input) == world_object.sneak and
-                    ('sprint' in input) == world_object.sprint)
+                    ('sneak' in input) == world_object.sneak)
+#                    ('sprint' in input) == world_object.sprint)
                 if input_changed:
                     if not self.freeze_animation:
                         world_object.set_walk('up' in input, 'down' in input,
                             'left' in input, 'right' in input)
                         world_object.set_animation('jump' in input, 'crouch' in input,
-                            'sneak' in input, 'sprint' in input)
+                                                   'sneak' in input, False)
                     if (not self.filter_visibility_data and
                         not self.filter_animation_data):
                         input_data.player_id = self.player_id
@@ -511,7 +511,7 @@ def apply_script(protocol, connection, config):
                         input_data.jump = world_object.jump
                         input_data.crouch = world_object.crouch
                         input_data.sneak = world_object.sneak
-                        input_data.sprint = world_object.sprint
+                        input_data.sprint = False
                         self.protocol.send_contained(input_data)
                 primary = 'primary_fire' in input
                 secondary = 'secondary_fire' in input
@@ -567,7 +567,7 @@ def apply_script(protocol, connection, config):
             for player in self.team.other.get_players():
                 if (player.world_object) and (not player.world_object.dead):
                    if (vector_collision(pos, player.world_object.position, 3)) and (obj.validate_hit(player.world_object, MELEE, 5)):
-                       hit_amount = 10
+                       hit_amount = 12
                        type = MELEE_KILL
                        self.on_hit(hit_amount, player, type, None)
                        player.hit(hit_amount, self, type)
@@ -585,20 +585,21 @@ def apply_script(protocol, connection, config):
             ix = int(floor(pos.x))
             iy = int(floor(pos.y))
             iz = int(floor(pos.z))
-            # self.create_explosion_effect()
+
+            if random.randint(0, 100) >= 20:
+                return
+
             for x in xrange(ix - 1, ix + 2):
                 for y in xrange(iy - 1, iy + 2):
                     for z in xrange(iz - 1 + i, iz + 2 + i):
-                        rough = random.randint(0, bindo)
-                        if rough == 0:
-                            if z > 61 or not destroy_block(self.protocol, x, y, z):
-                                return
-                            if map.get_solid(x, y, z):
-                                map.remove_point(x, y, z)
-                                map.check_node(x, y, z, True)
-                            self.on_block_removed(x, y, z)
-                        else:
-                            continue
+                        if z > 61 or not destroy_block(self.protocol, x, y, z):
+                            return
+
+                        if map.get_solid(x, y, z):
+                            map.remove_point(x, y, z)
+                            map.check_node(x, y, z, True)
+
+                        self.on_block_removed(x, y, z)
 
         def create_explosion_effect(self):
             self.protocol.world.create_object(Grenade, 0.0, self.world_object.position, None, Vertex3(), None)
@@ -691,15 +692,16 @@ def apply_script(protocol, connection, config):
                 return False
 
             if hit_player.local:
-                num_humans = len(self.protocol.connections) - len(self.protocol.bots)
-                if num_humans == 1:
-                    return hit_amount
-                elif num_humans == 2:
-                    return hit_amount * 0.70
-                elif num_humans == 3:
-                    return hit_amount * 0.40
-                elif num_humans == 4:
-                    return hit_amount * 0.10
+                return hit_amount * 0.50
+#                num_humans = len(self.protocol.connections) - len(self.protocol.bots)
+#                if num_humans == 1:
+#                    return hit_amount
+#                elif num_humans == 2:
+#                    return hit_amount * 0.70
+#                elif num_humans == 3:
+#                    return hit_amount * 0.40
+#                elif num_humans == 4:
+#                    return hit_amount * 0.10
             else:
                 hit_player.damage_taken_at = time.time()
 
