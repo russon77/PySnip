@@ -591,7 +591,7 @@ def apply_script(protocol, connection, config):
             iy = int(floor(pos.y))
             iz = int(floor(pos.z))
 
-            if random.randint(0, 100) >= 20:
+            if random.randint(0, 100) >= 5:
                 return
 
             for x in xrange(ix - 1, ix + 2):
