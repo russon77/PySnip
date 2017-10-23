@@ -58,6 +58,8 @@ S_SPEED = 'Day cycle speed is {multiplier}'
 S_SPEED_SET = 'Day cycle speed changed to {multiplier}'
 S_STOPPED = 'Day cycle stopped'
 
+ALWAYS_ENABLED = True
+
 try:
     from preservecolor import destroy_block
 except ImportError:
@@ -121,6 +123,9 @@ class LocalPeer:
 
 def apply_script(protocol, connection, config):
     class BotProtocol(protocol):
+
+        game_mode = TC_MODE
+
         bots = []
 
         current_color = None
